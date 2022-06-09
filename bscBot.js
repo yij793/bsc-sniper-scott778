@@ -109,7 +109,7 @@ const strategyHL =
 /*-----------End Settings-----------*/
 
 const node = 'https://bsc-dataseed.binance.org/';
-const wallet = new ethers.Wallet.fromMnemonic(mnemonic);
+const wallet = new ethers.Wallet(mnemonic);
 const provider = new ethers.providers.JsonRpcProvider(node);
 const account = wallet.connect(provider);
 const pancakeAbi = [
@@ -302,11 +302,12 @@ async function onNewMessage(event) {
 		let d = new Date().toLocaleString();
 		for (var i = 0; i < msg.length; i++) {
 			if (ethers.utils.isAddress(msg[i])) {
-				address = msg[i];
+				
+				address = address? address: msg[i];
 				console.log('Contract:', address);
                 
 			}
-			if (msg[i] == "BNB") {
+			if (msg[i] == "WBNB") {
 				var liquidity = parseFloat(msg[i - 1]);
 				console.log('--- NEW TOKEN FOUND ---');
 				console.log('Liquidity:', liquidity, 'BNB');
@@ -321,14 +322,13 @@ async function onNewMessage(event) {
 				console.log('--- --------------- ---');
 			}
 		}
-        
 		if (BUYALLTOKENS == false) {
 			// Buy low-liquid tokens
 			if (liquidity < strategyLL.maxLiquidity &&
 				liquidity > strategyLL.minLiquidity &&
 				slipBuy < strategyLL.maxTax &&
 				slipSell < strategyLL.maxTax &&
-				msg.includes("BNB") && msg.includes("Audit") && msg.includes("Report")) {
+				msg.includes("WBNB")) {
 
 				token.push({
 					tokenAddress: address,
