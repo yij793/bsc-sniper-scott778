@@ -1,6 +1,6 @@
 {
   "scripts": {
-    "start": "node bscbot.js"
+    "start": "node bscBot.js"
   },
   "dependencies": {
     "cool-ascii-faces": "^1.3.4",
