@@ -36,7 +36,7 @@ const stringSession = new StringSession(process.env.stringSession);
 const numberOfTokensToBuy = 10; // number of different tokens you want to buy
 const autoSell = true;  // If you want to auto sell or not 
 
-const myGasPriceForApproval = ethers.utils.parseUnits('6', 'gwei');
+const myGasPriceForApproval = ethers.utils.parseUnits('9', 'gwei');
 const myGasLimit = 1500000;
 
 const BUYALLTOKENS = true;
@@ -45,10 +45,10 @@ const BUYALLTOKENS = true;
 const buyAllTokensStrategy = {
 
 	investmentAmount: '0.1', // Amount to invest per token in BNB
-	gasPrice: ethers.utils.parseUnits('6', 'gwei'),
+	gasPrice: ethers.utils.parseUnits('9', 'gwei'),
 	profitPercent: 100,      // 100% profit
 	stopLossPercent: 10,  // 10% loss
-	percentOfTokensToSellProfit: 75, // sell 75% when profit is reached
+	percentOfTokensToSellProfit: 100, // sell 75% when profit is reached
 	percentOfTokensToSellLoss: 100, // sell 100% when stoploss is reached 
 	trailingStopLossPercent: 15 // 15% trailing stoploss
 }
@@ -279,12 +279,14 @@ async function sell(tokenObj, isProfit) {
 	const client = new TelegramClient(stringSession, apiId, apiHash, {
 		connectionRetries: 5,
 	});
-	await client.start({
-		phoneNumber: async () => await input.text("number?"),
-		password: async () => await input.text("password?"),
-		phoneCode: async () => await input.text("Code?"),
-		onError: (err) => console.log(err),
-	});
+	await client.start(
+		// {
+		// phoneNumber: async () => await input.text("number?"),
+		// password: async () => await input.text("password?"),
+		// phoneCode: async () => await input.text("Code?"),
+		// onError: (err) => console.log(err),
+	// }
+	);
 	console.log("You should now be connected.", '\n');
 	console.log(client.session.save(), '\n');
 	client.addEventHandler(onNewMessage, new NewMessage({}));
