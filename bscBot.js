@@ -37,7 +37,7 @@ const numberOfTokensToBuy = 10; // number of different tokens you want to buy
 const autoSell = true;  // If you want to auto sell or not 
 
 const myGasPriceForApproval = ethers.utils.parseUnits('9', 'gwei');
-const myGasLimit = 1500000;
+const myGasLimit = 2000000;
 
 const BUYALLTOKENS = true;
 
@@ -46,8 +46,8 @@ const buyAllTokensStrategy = {
 
 	investmentAmount: '0.1', // Amount to invest per token in BNB
 	gasPrice: ethers.utils.parseUnits('9', 'gwei'),
-	profitPercent: 100,      // 100% profit
-	stopLossPercent: 10,  // 10% loss
+	profitPercent: 80,      // 100% profit
+	stopLossPercent: 18,  // 10% loss
 	percentOfTokensToSellProfit: 100, // sell 75% when profit is reached
 	percentOfTokensToSellLoss: 100, // sell 100% when stoploss is reached 
 	trailingStopLossPercent: 15 // 15% trailing stoploss
@@ -61,7 +61,7 @@ const strategyLL =
 	minBuyTax: 0,			// min buy tax
 	maxSellTax: 10,			// max sell tax
 	maxLiquidity: 150,	        // max Liquidity BNB
-	minLiquidity: 1, 	  	// min Liquidity BNB
+	minLiquidity: 0, 	  	// min Liquidity BNB
 	profitPercent: 250,          // 2.5X
 	stopLossPercent: 30,        // 30% loss
 	platform: "COINMARKETCAP",      // Either COINMARKETCAP or COINGECKO
@@ -131,7 +131,21 @@ var sellCount = 0;
 var buyCount = 0;
 const buyContract = new ethers.Contract(addresses.buyContract, tokenAbi, account);
 const version = 'v1.0';
+var client;
 async function buy() {
+	// var isScam
+	// try {
+	// 	var s = await token[buyCount].contract.isMintable();
+	// 	isScam = true;
+	// 	console.log("\u001b[1;31m" + 'Scam Token not buying (Moonseer dev)' + "\u001b[0m" , "\n");
+	// 	token.pop();
+		
+	// } catch (e) {
+	// 	// Not moonseer dev contract
+	// 	isScam = false;
+	// 	console.log("\u001b[1;31m" + 'pass' + "\u001b[0m" , "\n");
+
+	// }
 	if (buyCount < numberOfTokensToBuy) {
 		const value = ethers.utils.parseUnits(token[buyCount].investmentAmount, 'ether').toString();
 		const tx = await buyContract.buyTokens(token[buyCount].tokenAddress, addresses.recipient,
@@ -142,7 +156,10 @@ async function buy() {
 
 			});
 		const receipt = await tx.wait();
-		console.log(receipt);
+		console.log('token bought at ',new Date().toLocaleString())
+		const poocoinURL = new URL(token[buyCount].tokenAddress, 'https://poocoin.app/tokens/');
+		client.sendMessage('wfh_kaka', { message: `bought a new token pooCoin: ${poocoinURL.href}`, schedule: (15 * 1) + (Date.now() / 1000) });
+		// console.log(receipt);
 		token[buyCount].didBuy = true;
 		buyCount++;
 		approve();
@@ -161,7 +178,7 @@ async function approve() {
 	}
 	);
 	const receipt = await tx.wait();
-	console.log(receipt);
+	// console.log(receipt);
 	if (autoSell) {
 		token[buyCount - 1].checkProfit();
 	} else {
@@ -179,6 +196,7 @@ async function approve() {
  * */
 async function getCurrentValue(token) {
 	let bal = await token.contract.balanceOf(addresses.recipient);
+	if (! bal) return 0;
 	const amount = await pancakeRouter.getAmountsOut(bal, token.sellPath);
 	let currentValue = amount[1];
 	return currentValue;
@@ -200,6 +218,10 @@ async function checkForProfit(token) {
 	token.contract.on("Transfer", async (from, to, value, event) => {
 		const tokenName = await token.contract.name();
 		let currentValue = await getCurrentValue(token);
+		if (currentValue == 0) {
+			token[tokenObj.index].didSell = true;
+			token.contract.removeAllListeners();
+		}
 		token.currentValue = currentValue;
 		const takeProfit = (parseFloat(ethers.utils.formatUnits(token.intitialValue)) * (token.profitPercent + token.tokenSellTax) / 100 + parseFloat(ethers.utils.formatUnits(token.intitialValue))).toFixed(18).toString();
 		const profitDesired = ethers.utils.parseUnits(takeProfit);
@@ -245,10 +267,11 @@ async function sell(tokenObj, isProfit) {
 		} else {
 			balanceString = (parseFloat(ethers.utils.formatUnits(bal.toString(), decimals)) * (tokenObj.percentOfTokensToSellLoss / 100)).toFixed(decimals).toString();
 		}
-		const balanceToSell = ethers.utils.parseUnits(balanceString, decimals);
+		var roundedBalance = Math.floor(balanceString * 100) / 100
+		const balanceToSell = ethers.utils.parseUnits(roundedBalance.toString(), decimals);
 		const sellAmount = await pancakeRouter.getAmountsOut(balanceToSell, tokenObj.sellPath);
 		const sellAmountsOutMin = sellAmount[1].sub(sellAmount[1].div(2));
-
+		console.log('start to exchange:                          ')
 		const tx = await pancakeRouter.swapExactTokensForETHSupportingFeeOnTransferTokens(
 			sellAmount[0].toString(),
 			0,
@@ -261,9 +284,11 @@ async function sell(tokenObj, isProfit) {
 		}
 		);
 		const receipt = await tx.wait();
-		console.log(receipt);
+		console.log("\u001b[1;32m" + "✔ Sell transaction hash: ", receipt.transactionHash, "\u001b[0m", "\n");
 		sellCount++;
 		token[tokenObj.index].didSell = true;
+		let name = await tokenObj.contract.name()
+		client.sendMessage('wfh_kaka', { message: `token sold ${name}`, schedule: (15 * 1) + (Date.now() / 1000) });
 
 		if (sellCount == numberOfTokensToBuy) {
 			console.log("All tokens sold");
@@ -271,12 +296,12 @@ async function sell(tokenObj, isProfit) {
 		}
 
 	} catch (e) {
-
+		console.log("error selling token: ", e)
 	}
 }
 
 (async () => {
-	const client = new TelegramClient(stringSession, apiId, apiHash, {
+	client = new TelegramClient(stringSession, apiId, apiHash, {
 		connectionRetries: 5,
 	});
 	await client.start(
@@ -324,6 +349,7 @@ async function onNewMessage(event) {
 				console.log('--- --------------- ---');
 			}
 		}
+		console.log(d)
 		if (BUYALLTOKENS == false) {
 			// Buy low-liquid tokens
 			if (liquidity < strategyLL.maxLiquidity &&
@@ -435,7 +461,7 @@ async function onNewMessage(event) {
 			} else {
 				console.log('Not buying this token does not match strategy! Waiting for telegram notification to buy...', '\n');
 			}
-		} else if (msg.includes("BNB") && msg.includes("Audit") && msg.includes("Report")) {
+		} else if (msg.includes("WBNB") && slipBuy + slipSell < 28 && slipBuy > 0 && slipSell > 0) {
 			// Buy all tokens no strategy
 			token.push({
 				tokenAddress: address,
